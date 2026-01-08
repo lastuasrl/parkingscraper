@@ -1,0 +1,81 @@
+---
+title: "Parking Availability Report"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 14, fig.height = 6)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+```
+
+```{r load-data}
+# Load parking data (skip comment lines)
+csv_path <- "data/parking_data_dolomites.csv"
+df <- read.csv(csv_path, comment.char = "#", stringsAsFactors = FALSE)
+
+# Parse timestamp and extract date
+df$timestamp <- as.POSIXct(df$timestamp)
+df$date <- as.Date(df$timestamp)
+
+# Convert available to numeric, handle negatives
+df$available <- as.numeric(df$available)
+df$available[df$available < 0] <- 0
+
+# Get unique days
+unique_days <- sort(unique(df$date))
+```
+
+**Data source:** `r csv_path`
+**Last updated:** `r format(Sys.time(), "%Y-%m-%d %H:%M")`
+**Coverage:** `r length(unique(df$name))` parking stations, `r length(unique_days)` days
+
+---
+
+```{r generate-plots, results='asis'}
+# Color palette
+n_locations <- length(unique(df$name))
+colors <- scales::hue_pal()(n_locations)
+names(colors) <- sort(unique(df$name))
+
+for (day in unique_days) {
+  cat(sprintf("\n## %s\n\n", day))
+
+  # Filter data for this day, 9am-5pm
+  day_data <- df %>%
+    filter(date == day) %>%
+    filter(hour(timestamp) >= 8 & hour(timestamp) <= 18)
+
+  if (nrow(day_data) == 0) {
+    cat("*No data available for this day (8am-6pm)*\n\n")
+    next
+  }
+
+  p <- ggplot(day_data, aes(x = timestamp, y = available, color = name)) +
+    geom_line(linewidth = 0.8) +
+    geom_point(size = 1.5) +
+    scale_color_manual(values = colors) +
+    labs(
+      title = paste("Parking Availability -", day),
+      x = "Time",
+      y = "Available Spaces",
+      color = "Location"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "right",
+      legend.text = element_text(size = 8),
+      plot.title = element_text(face = "bold", size = 14)
+    ) +
+    scale_x_datetime(date_labels = "%H:%M")
+
+  print(p)
+  cat("\n\n")
+}
+```
+
+---
+
+*Generated with R Markdown - re-knit to update plots with latest data*

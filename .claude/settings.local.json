@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.valgardena.it)",
+      "Bash(pip install:*)",
+      "Bash(python scraper.py:*)",
+      "Bash(where:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(py -m pip install:*)",
+      "Bash(py C:/Users/secretary/Documents/Github/parkingscraper/scraper.py --once)",
+      "Bash(cmd.exe /c \"py -m pip install requests beautifulsoup4 --quiet && py C:\\\\Users\\\\secretary\\\\Documents\\\\Github\\\\parkingscraper\\\\scraper.py --once\")",
+      "Bash(cmd.exe /c \"py -m pip install requests beautifulsoup4 -q && py scraper.py --once\")",
+      "Bash(cmd.exe /c \"py scraper.py --once 2>&1\")",
+      "Bash(powershell.exe -Command \"py C:\\\\Users\\\\secretary\\\\Documents\\\\Github\\\\parkingscraper\\\\scraper.py --once\")",
+      "Bash(powershell.exe:*)",
+      "WebFetch(domain:mic.aesys.com)",
+      "WebSearch",
+      "WebFetch(domain:www.aesys.com)",
+      "WebFetch(domain:acm.aesys.com)",
+      "WebFetch(domain:opendatahub.com)",
+      "WebFetch(domain:databrowser.opendatahub.bz.it)",
+      "WebFetch(domain:mobility.api.opendatahub.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:dati.trentino.it)",
+      "WebFetch(domain:tourism.api.opendatahub.com)",
+      "Bash(git config:*)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:opendatahub.readthedocs.io)",
+      "WebFetch(domain:docs.opendatahub.bz.it)",
+      "WebFetch(domain:databrowser.opendatahub.com)",
+      "WebFetch(domain:gtfs.api.opendatahub.com)",
+      "Bash(py download_transport.py:*)",
+      "Bash(py -c:*)",
+      "Bash(py generate_summary_report.py)",
+      "Bash(py generate_transport_summary.py:*)",
+      "WebFetch(domain:astat.provinz.bz.it)"
+    ]
+  }
+}
