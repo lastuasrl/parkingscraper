@@ -1,0 +1,3 @@
+# FORESTIS Hotel Rate Scraper Dependencies
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
