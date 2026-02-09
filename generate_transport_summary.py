@@ -10,7 +10,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "data" / "transport"
 STOPS_FILE = DATA_DIR / "transport_stops.csv"
 ROUTES_FILE = DATA_DIR / "transport_routes.csv"
 PLOTS_DIR = DATA_DIR / "plots"
@@ -21,8 +21,8 @@ def load_data():
     """Load transport data."""
     print("Loading transport data...")
 
-    stops_df = pd.read_csv(STOPS_FILE, comment='#', encoding='utf-8')
-    routes_df = pd.read_csv(ROUTES_FILE, comment='#', encoding='utf-8')
+    stops_df = pd.read_csv(STOPS_FILE, encoding='utf-8')
+    routes_df = pd.read_csv(ROUTES_FILE, encoding='utf-8')
 
     print(f"Loaded {len(stops_df):,} stops")
     print(f"Loaded {len(routes_df):,} routes")

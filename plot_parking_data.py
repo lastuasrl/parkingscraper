@@ -108,13 +108,15 @@ def plot_parking_data(csv_path='data/parking_data_dolomites.csv'):
         print(f"Plot saved to {output_file}")
         plt.close()
 
-    # Generate markdown report
-    md_file = os.path.join(plots_dir, 'parking_report.md')
+    # Generate markdown report in root directory
+    root_dir = os.path.dirname(csv_path) or '.'
+    root_dir = os.path.dirname(root_dir) if 'data' in root_dir else root_dir
+    md_file = os.path.join(root_dir, 'parking_report.md')
     with open(md_file, 'w', encoding='utf-8') as f:
         f.write('# Weekly Parking Availability Report\n\n')
         for year_week in unique_weeks:
             f.write(f'## {year_week}\n\n')
-            f.write(f'![Parking {year_week}](parking_{year_week}.png)\n\n')
+            f.write(f'![Parking {year_week}](data/plots/parking_{year_week}.png)\n\n')
     print(f"Markdown report saved to {md_file}")
 
 if __name__ == "__main__":

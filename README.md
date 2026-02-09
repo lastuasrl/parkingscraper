@@ -39,6 +39,22 @@ python plot_parking_data.py parking_data_dolomites.csv
 python plot_snow_data.py snow_data.csv
 ```
 
+**Download historical data (fills gaps):**
+```bash
+# Download specific date range
+python download_historical.py 2024-12-01 2026-02-09
+
+# Download from Dec 1, 2024 to today
+python download_historical.py
+```
+
+**⚠️ Historical Download Behavior:**
+- **Safely merges** with existing data (does not overwrite)
+- Automatically **skips dates that already exist** in the CSV
+- **Deduplicates** records based on timestamp + station name
+- Useful for **filling gaps** when scraper was not running
+- API retains data for months/years (exact retention period not documented)
+
 ## Output
 
 - **Parking**: Saved to `parking_data_plot.png` (or custom name).
