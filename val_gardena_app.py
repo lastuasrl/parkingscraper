@@ -840,14 +840,16 @@ def create_route_network_svg(route_paths):
             'Seceda':        (x + 10, y + 4, 'start'),
             'Resciesa':      (x - 10, y - 8, 'end'),
             'Bulla':         (x + 12, y + 5, 'start'),
-            'Pontives':      (x, y - 15, 'middle'),
+            'Pontives':      (x, y - 20, 'middle'),
             'Ponte Gardena': (x + 12, y + 16, 'start'),
-            'Laion':         (x, y - 14, 'middle'),
+            'Laion':         (x + 12, y - 8, 'start'),
             'Bolzano':       (x + 12, y + 5, 'start'),
-            'Chiusa':        (x, y + 16, 'middle'),
+            'Chiusa':        (x - 12, y + 14, 'end'),
             'Funes':         (x - 12, y + 14, 'end'),
             'Bressanone':    (x, y - 14, 'middle'),
-            'Plan de Gralba': (x - 10, y - 20, 'end'),
+            'Plan de Gralba': (x, y - 30, 'middle'),
+            'Passo Gardena':  (x, y - 26, 'middle'),
+            'Colfosco':      (x + 10, y + 14, 'start'),
             'Passo Sella':   (x - 10, y + 18, 'end'),
         }
         if place in label_pos:
@@ -1007,7 +1009,11 @@ def main():
             else:
                 village_stations = main_stations[main_stations['location'] == village]
 
-            village_stations = village_stations.sort_values('departures', ascending=False)
+            main_order = {name: i for i, name in enumerate(MAIN_STOP_NAMES)}
+            village_stations = village_stations.copy()
+            village_stations['_priority'] = village_stations['stop_name'].map(main_order).fillna(999)
+            village_stations = village_stations.sort_values(['_priority', 'departures'], ascending=[True, False])
+            village_stations = village_stations.drop(columns=['_priority'])
 
             if village_stations.empty:
                 st.warning(f"No stations found in {village}")
