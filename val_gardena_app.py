@@ -847,8 +847,8 @@ def create_route_network_svg(route_paths):
             'Chiusa':        (x - 12, y + 14, 'end'),
             'Funes':         (x - 12, y + 14, 'end'),
             'Bressanone':    (x, y - 14, 'middle'),
-            'Plan de Gralba': (x, y - 30, 'middle'),
-            'Passo Gardena':  (x, y - 26, 'middle'),
+            'Plan de Gralba': (x - 10, y - 14, 'end'),
+            'Passo Gardena':  (x + 10, y + 16, 'start'),
             'Colfosco':      (x + 10, y + 14, 'start'),
             'Passo Sella':   (x - 10, y + 18, 'end'),
         }
