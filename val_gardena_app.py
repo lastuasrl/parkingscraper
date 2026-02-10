@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, date, time
+import math
 
 # Page config
 st.set_page_config(
@@ -596,116 +597,123 @@ def _classify_stop(name, location):
 
 
 def create_route_network_svg(route_paths):
-    """Create a clean schematic transit map of bus routes from Ortisei."""
+    """Create a subway-style transit map with parallel colored route lines."""
     if not route_paths:
         return "<p>No route data</p>"
 
-    svg_w, svg_h = 960, 380
+    svg_w, svg_h = 960, 420
+    line_y = 185
 
-    # --- Fixed node positions (hand-crafted metro-map style) ---
-    line_y = 195  # main horizontal line
-
+    # Node positions (hand-crafted schematic layout)
     nodes = {
-        # Main valley line (horizontal)
-        'Ortisei':        (380, line_y),
-        'S. Cristina':    (510, line_y),
-        'Selva':          (620, line_y),
-        # North of Ortisei (local mountain stops — above main line)
-        'Seceda':         (350, line_y - 60),
-        'Resciesa':       (410, line_y - 60),
-        # South of Ortisei (Bulla — circular route towards Siusi direction)
-        'Bulla':          (350, line_y + 55),
-        # West: main road Ortisei → Pontives → Laion → Ponte Gardena
-        'Pontives':       (280, line_y),
-        'Laion':          (200, line_y),
+        # Main valley (horizontal)
+        'Ortisei':        (400, line_y),
+        'S. Cristina':    (530, line_y),
+        'Selva':          (640, line_y),
+        # North of Ortisei (local routes — real geographic direction)
+        'Seceda':         (400, line_y - 45),
+        'Resciesa':       (385, line_y - 55),
+        # South from Ortisei: Bulla spur, then 172 line
+        'Bulla':          (355, line_y + 50),
+        'Castelrotto':    (310, line_y + 90),
+        'Siusi':          (265, line_y + 125),
+        # West from Ortisei
+        'Pontives':       (290, line_y),
+        # Route 360/351 goes via Laion (above main line)
+        'Laion':          (200, line_y - 35),
+        # Ponte Gardena (junction)
         'Ponte Gardena':  (120, line_y),
-        # South from Laion: Siusi → Castelrotto
-        'Siusi':          (230, line_y + 60),
-        'Castelrotto':    (165, line_y + 60),
-        # North from Ponte Gardena: Chiusa → Bressanone / Funes
-        'Chiusa':         (70,  line_y - 40),
-        'Funes':          (120, line_y - 55),
-        'Bressanone':     (70,  line_y - 80),
-        # South from Ponte Gardena: Bolzano
-        'Bolzano':        (55,  line_y + 55),
-        # East from Selva: Plan de Gralba (fork)
-        'Plan de Gralba': (700, line_y - 25),
-        # Northeast: Passo Gardena → Colfosco → Corvara (summer only)
-        'Passo Gardena':  (755, line_y - 55),
-        'Colfosco':       (810, line_y - 80),
-        'Corvara':        (860, line_y - 100),
-        # Southeast: Passo Sella → Passo Pordoi (summer only)
-        'Passo Sella':    (755, line_y + 10),
-        'Passo Pordoi':   (825, line_y + 35),
+        # Northwest from P. Gardena: Chiusa → Funes → Bressanone
+        'Chiusa':         (75, line_y - 35),
+        'Funes':          (55, line_y - 60),
+        'Bressanone':     (35, line_y - 85),
+        # South from P. Gardena
+        'Bolzano':        (60, line_y + 55),
+        # East from Selva
+        'Plan de Gralba': (720, line_y - 20),
+        # Northeast: Passo Gardena → Colfosco → Corvara (summer)
+        'Passo Gardena':  (780, line_y - 50),
+        'Colfosco':       (835, line_y - 75),
+        'Corvara':        (885, line_y - 95),
+        # Southeast: Passo Sella → Passo Pordoi (summer)
+        'Passo Sella':    (780, line_y + 15),
+        'Passo Pordoi':   (850, line_y + 40),
     }
 
-    # Summer-only stops (routes 471, 473 — Jun-Oct only)
-    summer_only = {'Passo Gardena', 'Colfosco', 'Corvara', 'Passo Sella', 'Passo Pordoi'}
-    summer_color = '#42A5F5'  # blue for seasonal/summer-only
-
-    # Connections: (from_node, to_node, style)
-    connections = [
-        # Main valley
-        ('Ortisei', 'S. Cristina', 'solid'),
-        ('S. Cristina', 'Selva', 'solid'),
-        # Local Ortisei — north (Seceda, Resciesa)
-        ('Ortisei', 'Seceda', 'local'),
-        ('Seceda', 'Resciesa', 'local'),
-        ('Resciesa', 'Ortisei', 'local'),
-        # Local Ortisei — south (Bulla)
-        ('Ortisei', 'Bulla', 'local'),
-        # West: main road through Laion
-        ('Ortisei', 'Pontives', 'branch'),
-        ('Pontives', 'Laion', 'branch'),
-        ('Laion', 'Ponte Gardena', 'branch'),
-        # From Laion: south to Siusi → Castelrotto
-        ('Laion', 'Siusi', 'branch'),
-        ('Siusi', 'Castelrotto', 'branch'),
-        # From Ponte Gardena: north to Chiusa → Bressanone / Funes
-        ('Ponte Gardena', 'Chiusa', 'branch'),
-        ('Chiusa', 'Bressanone', 'branch'),
-        ('Ponte Gardena', 'Funes', 'branch'),
-        # From Ponte Gardena: south to Bolzano
-        ('Ponte Gardena', 'Bolzano', 'branch'),
-        # East from Selva — Corvara branch (northeast, summer only)
-        ('Selva', 'Plan de Gralba', 'branch'),
-        ('Plan de Gralba', 'Passo Gardena', 'summer'),
-        ('Passo Gardena', 'Colfosco', 'summer'),
-        ('Colfosco', 'Corvara', 'summer'),
-        # East from Selva — Passo Sella branch (southeast, summer only)
-        ('Plan de Gralba', 'Passo Sella', 'summer'),
-        ('Passo Sella', 'Passo Pordoi', 'summer'),
+    # Subway lines: each line has a color and a path of segments
+    route_lines = [
+        {
+            'id': '360', 'label': 'Bressanone',
+            'color': '#6A1B9A',
+            'segments': [
+                ('Selva', 'S. Cristina'), ('S. Cristina', 'Ortisei'),
+                ('Ortisei', 'Pontives'),
+                ('Pontives', 'Laion'), ('Laion', 'Ponte Gardena'),
+                ('Ponte Gardena', 'Chiusa'), ('Chiusa', 'Funes'),
+                ('Funes', 'Bressanone'),
+            ],
+            'dashed': False,
+        },
+        {
+            'id': '350', 'label': 'Bolzano',
+            'color': '#E65100',
+            'segments': [
+                ('Selva', 'S. Cristina'), ('S. Cristina', 'Ortisei'),
+                ('Ortisei', 'Pontives'), ('Pontives', 'Ponte Gardena'),
+                ('Ponte Gardena', 'Bolzano'),
+            ],
+            'dashed': False,
+        },
+        {
+            'id': '172', 'label': 'Siusi',
+            'color': '#2E7D32',
+            'segments': [
+                ('Selva', 'S. Cristina'), ('S. Cristina', 'Ortisei'),
+                ('Ortisei', 'Castelrotto'), ('Castelrotto', 'Siusi'),
+            ],
+            'dashed': False,
+        },
+        {
+            'id': '473', 'label': 'Corvara',
+            'color': '#00695C',
+            'segments': [
+                ('Selva', 'Plan de Gralba'),
+                ('Plan de Gralba', 'Passo Gardena'), ('Passo Gardena', 'Colfosco'),
+                ('Colfosco', 'Corvara'),
+            ],
+            'dashed': True,
+        },
+        {
+            'id': '471', 'label': 'Passo Sella',
+            'color': '#1565C0',
+            'segments': [
+                ('Selva', 'Plan de Gralba'),
+                ('Plan de Gralba', 'Passo Sella'), ('Passo Sella', 'Passo Pordoi'),
+            ],
+            'dashed': True,
+        },
     ]
 
-    # Local Ortisei stops — assign routes manually
-    local_stops = {'Seceda', 'Resciesa', 'Bulla'}
-    valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
+    # Build segment → list of (line_index, color, dashed)
+    seg_lines = {}
+    for li, line in enumerate(route_lines):
+        for a, b in line['segments']:
+            key = frozenset((a, b))
+            if key not in seg_lines:
+                seg_lines[key] = []
+            seg_lines[key].append((li, line['color'], line['dashed']))
 
-    # Determine which routes serve each destination
-    ext_places = set(nodes.keys()) - valley_nodes - local_stops
-    route_dests = {}  # place -> set of route names
-    for rname, coords in route_paths.items():
-        for c in coords:
-            if pd.notna(c['lat']):
-                place = _classify_stop(c['name'], c['location'])
-                loc_map = {'St. Ulrich': 'Ortisei', 'St. Christina': 'S. Cristina',
-                           'Wolkenstein': 'Selva', 'Klausen': 'Chiusa'}
-                mapped = loc_map.get(place, place)
-                if mapped in ext_places:
-                    if mapped not in route_dests:
-                        route_dests[mapped] = set()
-                    route_dests[mapped].add(rname)
-    # Manual: local routes
-    route_dests['Seceda'] = {'3', '4', '355.3'}
-    route_dests['Resciesa'] = {'4', '355.4'}
-    route_dests['Bulla'] = {'2', '355.2'}
+    # Perpendicular offset for parallel lines
+    def _offset(x1, y1, x2, y2, off):
+        dx, dy = x2 - x1, y2 - y1
+        length = (dx**2 + dy**2) ** 0.5
+        if length == 0:
+            return x1, y1, x2, y2
+        px, py = -dy / length, dx / length
+        return (x1 + px*off, y1 + py*off, x2 + px*off, y2 + py*off)
 
-    # Node styling
-    valley_style = {
-        'Ortisei':     {'color': '#7B1FA2', 'r': 10, 'fs': 14, 'dy': -18},
-        'S. Cristina': {'color': '#4CAF50', 'r': 8,  'fs': 12, 'dy': 28},
-        'Selva':       {'color': '#F44336', 'r': 8,  'fs': 12, 'dy': 28},
-    }
+    spacing = 5
+    line_w = 3.5
 
     svg = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_w} {svg_h}" '
@@ -713,135 +721,205 @@ def create_route_network_svg(route_paths):
         f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="white"/>',
     ]
 
-    # Draw connections
-    for from_n, to_n, style in connections:
-        x1, y1 = nodes[from_n]
-        x2, y2 = nodes[to_n]
-        if style == 'solid':
-            svg.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="#BDBDBD" stroke-width="6" stroke-linecap="round"/>'
-            )
-        elif style == 'local':
-            svg.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="#CE93D8" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>'
-            )
-        elif style == 'summer':
-            svg.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{summer_color}" stroke-width="3" stroke-linecap="round" '
-                f'stroke-dasharray="6,3" opacity="0.7"/>'
-            )
-        else:
-            svg.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="#DDD" stroke-width="3" stroke-linecap="round"/>'
-            )
+    # Draw all route segments as parallel colored lines
+    drawn = set()
+    for line in route_lines:
+        for a, b in line['segments']:
+            key = frozenset((a, b))
+            if key in drawn:
+                continue
+            drawn.add(key)
+            # Normalize direction: left-to-right, then top-to-bottom
+            ax, ay = nodes[a]
+            bx, by = nodes[b]
+            if ax > bx or (ax == bx and ay > by):
+                a, b = b, a
+                ax, ay, bx, by = bx, by, ax, ay
+            lines_here = seg_lines[key]
+            n = len(lines_here)
+            for i, (li, color, dashed) in enumerate(lines_here):
+                off = (i - (n - 1) / 2) * spacing
+                ox1, oy1, ox2, oy2 = _offset(ax, ay, bx, by, off)
+                dash = ' stroke-dasharray="8,4"' if dashed else ''
+                svg.append(
+                    f'<line x1="{ox1:.1f}" y1="{oy1:.1f}" '
+                    f'x2="{ox2:.1f}" y2="{oy2:.1f}" '
+                    f'stroke="{color}" stroke-width="{line_w}" '
+                    f'stroke-linecap="round"{dash}/>'
+                )
 
-    # Local routes label (above Ortisei, between Seceda & Resciesa)
-    ox, oy = nodes['Ortisei']
+    # Local connections (Seceda, Resciesa, Bulla — thin lines)
+    local_conns = [
+        ('Ortisei', 'Seceda'), ('Seceda', 'Resciesa'),
+        ('Resciesa', 'Ortisei'), ('Ortisei', 'Bulla'),
+    ]
+    for a, b in local_conns:
+        ax, ay = nodes[a]
+        bx, by = nodes[b]
+        svg.append(
+            f'<line x1="{ax}" y1="{ay}" x2="{bx}" y2="{by}" '
+            f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" opacity="0.5"/>'
+        )
+
+    # Siusi → Bolzano continuation arrow
+    sx, sy = nodes['Siusi']
+    bx, by = nodes['Bolzano']
+    # Arrow pointing from Siusi towards Bolzano direction (southwest)
+    angle = math.atan2(by - sy, bx - sx)
+    arr_len = 60
+    ax2 = sx + arr_len * math.cos(angle)
+    ay2 = sy + arr_len * math.sin(angle)
     svg.append(
-        f'<text x="{ox}" y="{oy - 80}" text-anchor="middle" '
-        f'fill="#CE93D8" font-size="9" font-style="italic">Routes 3, 4, 355</text>'
+        f'<line x1="{sx}" y1="{sy}" x2="{ax2:.0f}" y2="{ay2:.0f}" '
+        f'stroke="#999" stroke-width="{line_w}" stroke-linecap="round" '
+        f'stroke-dasharray="8,4"/>'
+    )
+    # Arrow tip
+    tip_dx = 10 * math.cos(angle)
+    tip_dy = 10 * math.sin(angle)
+    perp_x = 5 * math.cos(angle + math.pi/2)
+    perp_y = 5 * math.sin(angle + math.pi/2)
+    p1 = f'{ax2 + tip_dx:.0f},{ay2 + tip_dy:.0f}'
+    p2 = f'{ax2 + perp_x:.0f},{ay2 + perp_y:.0f}'
+    p3 = f'{ax2 - perp_x:.0f},{ay2 - perp_y:.0f}'
+    svg.append(f'<polygon points="{p1} {p2} {p3}" fill="#999"/>')
+    svg.append(
+        f'<text x="{ax2 + 8:.0f}" y="{ay2 + 4:.0f}" fill="#999" '
+        f'font-size="9" font-style="italic">Bolzano</text>'
     )
 
-    # Draw external and local nodes
-    for place in ext_places | local_stops:
-        if place not in nodes:
-            continue
+    # Funes Valley stub (route 333, summer — extends east from Funes stop)
+    fx, fy = nodes['Funes']
+    fv_color = '#999'
+    svg.append(
+        f'<line x1="{fx}" y1="{fy}" x2="{fx + 70}" y2="{fy}" '
+        f'stroke="{fv_color}" stroke-width="{line_w}" stroke-linecap="round" '
+        f'stroke-dasharray="8,4"/>'
+    )
+    # Arrow tip
+    svg.append(
+        f'<polygon points="{fx + 70},{fy - 5} {fx + 80},{fy} {fx + 70},{fy + 5}" '
+        f'fill="{fv_color}"/>'
+    )
+    svg.append(
+        f'<text x="{fx + 85}" y="{fy - 2}" fill="{fv_color}" '
+        f'font-size="10" font-weight="bold">Funes Valley</text>'
+    )
+    svg.append(
+        f'<text x="{fx + 85}" y="{fy + 10}" fill="#AAA" '
+        f'font-size="8">333 (summer)</text>'
+    )
+
+    # Draw stop nodes
+    local_stops = {'Seceda', 'Resciesa', 'Bulla'}
+    valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
+
+    for place in set(nodes.keys()) - valley_nodes:
         x, y = nodes[place]
-        routes = route_dests.get(place, set())
-        if not routes:
-            continue
-
-        is_summer = place in summer_only
-        fill = summer_color if is_summer else '#888'
-
+        # Color based on serving route lines
+        serving = []
+        for line in route_lines:
+            for a, b in line['segments']:
+                if place in (a, b):
+                    serving.append(line['color'])
+                    break
+        if place in local_stops:
+            fill, r = '#CE93D8', 4
+        elif len(serving) == 1:
+            fill, r = serving[0], 5
+        elif len(serving) > 1:
+            fill, r = '#555', 6
+        else:
+            fill, r = '#999', 4
         svg.append(
-            f'<circle cx="{x}" cy="{y}" r="5" fill="{fill}" stroke="white" stroke-width="1.5"/>'
+            f'<circle cx="{x}" cy="{y}" r="{r}" fill="{fill}" stroke="white" stroke-width="1.5"/>'
         )
 
-        # Label positioning by area
-        if place in local_stops:
-            if y < line_y:
-                lx, ly, anchor = x, y - 12, 'middle'
-            else:
-                lx, ly, anchor = x, y + 16, 'middle'
-        elif x < 380:  # west side
-            if y < line_y:
-                lx, ly, anchor = x, y - 10, 'middle'
-            else:
-                lx, ly, anchor = x, y + 16, 'middle'
-        elif y > line_y:  # east side, below line
+        # Label positioning — explicit overrides for nodes near lines
+        label_pos = {
+            'Seceda':        (x + 10, y + 4, 'start'),
+            'Resciesa':      (x - 10, y - 8, 'end'),
+            'Bulla':         (x + 12, y + 5, 'start'),
+            'Pontives':      (x, y - 15, 'middle'),
+            'Ponte Gardena': (x + 12, y + 16, 'start'),
+            'Laion':         (x, y - 14, 'middle'),
+            'Bolzano':       (x + 12, y + 5, 'start'),
+            'Chiusa':        (x, y + 16, 'middle'),
+            'Funes':         (x - 12, y + 14, 'end'),
+            'Bressanone':    (x, y - 14, 'middle'),
+            'Plan de Gralba': (x - 10, y - 20, 'end'),
+            'Passo Sella':   (x - 10, y + 18, 'end'),
+        }
+        if place in label_pos:
+            lx, ly, anchor = label_pos[place]
+        elif y > line_y:
             lx, ly, anchor = x + 10, y + 16, 'start'
-        else:  # east side, above or on line
+        else:
             lx, ly, anchor = x + 10, y - 10, 'start'
 
-        label_color = summer_color if is_summer else '#666'
         svg.append(
             f'<text x="{lx}" y="{ly}" text-anchor="{anchor}" '
-            f'fill="{label_color}" font-size="10" font-weight="bold">{place}</text>'
+            f'fill="#555" font-size="10" font-weight="bold">{place}</text>'
         )
 
-        # Route numbers (small, near label)
-        route_str = ', '.join(sorted(routes, key=lambda r: r.zfill(10)))
-        ry = ly + 12
-        svg.append(
-            f'<text x="{lx}" y="{ry}" text-anchor="{anchor}" '
-            f'fill="#AAA" font-size="8">{route_str}</text>'
-        )
-
-    # Draw valley nodes (on top)
+    # Valley nodes (large interchange circles, drawn on top)
+    valley_style = {
+        'Ortisei':     {'color': '#7B1FA2', 'r': 12, 'fs': 14, 'dy': -22},
+        'S. Cristina': {'color': '#555',    'r': 9,  'fs': 12, 'dy': 28},
+        'Selva':       {'color': '#555',    'r': 9,  'fs': 12, 'dy': 28},
+    }
     for place in ('Ortisei', 'S. Cristina', 'Selva'):
         x, y = nodes[place]
         s = valley_style[place]
-
         if place == 'Ortisei':
             svg.append(
-                f'<circle cx="{x}" cy="{y}" r="{s["r"] + 6}" '
-                f'fill="none" stroke="{s["color"]}" stroke-width="2.5" opacity="0.25"/>'
+                f'<circle cx="{x}" cy="{y}" r="{s["r"] + 5}" '
+                f'fill="none" stroke="{s["color"]}" stroke-width="2" opacity="0.2"/>'
             )
-
         svg.append(
             f'<circle cx="{x}" cy="{y}" r="{s["r"]}" '
-            f'fill="{s["color"]}" stroke="white" stroke-width="2"/>'
+            f'fill="white" stroke="{s["color"]}" stroke-width="3"/>'
         )
         svg.append(
             f'<text x="{x}" y="{y + s["dy"]}" text-anchor="middle" '
             f'fill="{s["color"]}" font-size="{s["fs"]}" font-weight="bold">{place}</text>'
         )
 
-        # Route numbers for valley villages
-        v_routes = route_dests.get(place, set())
-        loc_map_rev = {'Ortisei': 'St. Ulrich', 'S. Cristina': 'St. Christina', 'Selva': 'Wolkenstein'}
-        loc_key = loc_map_rev.get(place)
-        if loc_key:
-            for rname, coords in route_paths.items():
-                for c in coords:
-                    if c.get('location') == loc_key:
-                        v_routes.add(rname)
-                        break
-        if v_routes and place != 'Ortisei':
-            vr_str = ', '.join(sorted(v_routes, key=lambda r: r.zfill(10)))
-            svg.append(
-                f'<text x="{x}" y="{y + s["dy"] + s["fs"] + 2}" text-anchor="middle" '
-                f'fill="#BBB" font-size="7">{vr_str}</text>'
-            )
-
-    # Legend
-    lg_x, lg_y = svg_w - 200, svg_h - 45
+    # Legend (bottom-left)
+    lg_x, lg_y = 20, svg_h - 115
+    for i, line in enumerate(route_lines):
+        y = lg_y + i * 14
+        dash = ' stroke-dasharray="6,3"' if line['dashed'] else ''
+        summer = ' (summer)' if line['dashed'] else ''
+        svg.append(
+            f'<line x1="{lg_x}" y1="{y}" x2="{lg_x + 22}" y2="{y}" '
+            f'stroke="{line["color"]}" stroke-width="{line_w}" '
+            f'stroke-linecap="round"{dash}/>'
+        )
+        svg.append(
+            f'<text x="{lg_x + 28}" y="{y + 4}" fill="#555" font-size="9">'
+            f'{line["id"]} {line["label"]}{summer}</text>'
+        )
+    # Local line legend entry
+    ly_local = lg_y + len(route_lines) * 14
     svg.append(
-        f'<circle cx="{lg_x}" cy="{lg_y}" r="4" fill="#888"/>'
+        f'<line x1="{lg_x}" y1="{ly_local}" x2="{lg_x + 22}" y2="{ly_local}" '
+        f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round"/>'
     )
     svg.append(
-        f'<text x="{lg_x + 8}" y="{lg_y + 4}" fill="#888" font-size="9">Year-round</text>'
+        f'<text x="{lg_x + 28}" y="{ly_local + 4}" fill="#CE93D8" font-size="9">'
+        f'Local (1-5, 355)</text>'
+    )
+    # Funes Valley legend
+    ly_fv = ly_local + 14
+    svg.append(
+        f'<line x1="{lg_x}" y1="{ly_fv}" x2="{lg_x + 22}" y2="{ly_fv}" '
+        f'stroke="#999" stroke-width="{line_w}" stroke-linecap="round" '
+        f'stroke-dasharray="6,3"/>'
     )
     svg.append(
-        f'<circle cx="{lg_x + 85}" cy="{lg_y}" r="4" fill="{summer_color}"/>'
-    )
-    svg.append(
-        f'<text x="{lg_x + 93}" y="{lg_y + 4}" fill="{summer_color}" font-size="9">Summer only</text>'
+        f'<text x="{lg_x + 28}" y="{ly_fv + 4}" fill="#999" font-size="9">'
+        f'333 Funes Valley (summer)</text>'
     )
 
     svg.append('</svg>')
@@ -885,7 +963,7 @@ def main():
         st.markdown("### Bus Route Network from Ortisei")
         route_paths = load_route_network()
         network_svg = create_route_network_svg(route_paths)
-        components.html(network_svg, height=390)
+        components.html(network_svg, height=430)
 
         show_all_map = st.checkbox("Show all stops", value=False, key="map_all")
         if show_all_map:
