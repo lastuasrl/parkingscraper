@@ -1151,15 +1151,6 @@ def main():
         geo_map = create_interactive_map()
         st_folium(geo_map, width=960, height=400, returned_objects=[])
 
-        show_all_map = st.checkbox("Show all stops", value=False, key="map_all")
-        if show_all_map:
-            st.markdown(f"**All {len(stations)} stations in Val Gardena:**")
-            all_display = stations[['stop_name', 'location', 'departures']].copy()
-            all_display.columns = ['Stop Name', 'Village', 'Departures']
-            all_display = all_display.sort_values(['Village', 'Departures'], ascending=[True, False])
-            all_display.index = range(1, len(all_display) + 1)
-            st.table(all_display)
-
     # -- TAB 2: Schedules ----------------------------------------------------
     with tab2:
         st.header("Departure Board")
@@ -1348,6 +1339,11 @@ def main():
                     stations[stations['location'] == origin_loc]['stop_name']
                 )
                 schedule = schedule[~schedule['destination'].isin(origin_stop_names)]
+                # Also catch headsign variants (e.g. "Bolzano Autostazione")
+                schedule = schedule[
+                    ~schedule['destination'].str.startswith(origin_loc + ' ', na=False)
+                    | (origin_loc == '')
+                ]
 
             if not schedule.empty:
                 st.success(f"**{len(schedule)}** departures from **{station_name}**")
