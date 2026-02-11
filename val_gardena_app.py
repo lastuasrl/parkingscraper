@@ -10,6 +10,8 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime, date, time
 import math
+import folium
+from streamlit_folium import st_folium
 
 # Page config
 st.set_page_config(
@@ -643,6 +645,7 @@ def create_route_network_svg(route_paths):
         'Col Raiser':     (555, line_y - 45),
         'Monte Pana':     (505, line_y + 45),
         'Dantercepies':   (715, line_y - 40),
+        'Vallunga':       (665, line_y - 70),
     }
 
     # Subway lines: each line has a color and a path of segments
@@ -760,7 +763,7 @@ def create_route_network_svg(route_paths):
         ('Resciesa', 'Ortisei', False), ('Ortisei', 'Bulla', False),
         ('Ortisei', 'S. Giacomo', False),
         ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
-        ('Selva', 'Dantercepies', False),
+        ('Selva', 'Dantercepies', False), ('Selva', 'Vallunga', False),
     ]
     for a, b, dashed in local_conns:
         ax, ay = nodes[a]
@@ -820,8 +823,39 @@ def create_route_network_svg(route_paths):
         f'font-size="8">333 (summer)</text>'
     )
 
+    # Alpe di Siusi stub (routes 11/12 — extends south from Monte Pana)
+    mpx, mpy = nodes['Monte Pana']
+    as_color = '#999'
+    # Arrow pointing southwest from Monte Pana towards Alpe di Siusi
+    as_angle = math.atan2(1, -0.5)  # down and slightly left
+    as_len = 55
+    as_x2 = mpx + as_len * math.cos(as_angle)
+    as_y2 = mpy + as_len * math.sin(as_angle)
+    svg.append(
+        f'<line x1="{mpx}" y1="{mpy}" x2="{as_x2:.0f}" y2="{as_y2:.0f}" '
+        f'stroke="{as_color}" stroke-width="{line_w}" stroke-linecap="round" '
+        f'stroke-dasharray="8,4"/>'
+    )
+    # Arrow tip
+    as_tip_dx = 10 * math.cos(as_angle)
+    as_tip_dy = 10 * math.sin(as_angle)
+    as_perp_x = 5 * math.cos(as_angle + math.pi/2)
+    as_perp_y = 5 * math.sin(as_angle + math.pi/2)
+    asp1 = f'{as_x2 + as_tip_dx:.0f},{as_y2 + as_tip_dy:.0f}'
+    asp2 = f'{as_x2 + as_perp_x:.0f},{as_y2 + as_perp_y:.0f}'
+    asp3 = f'{as_x2 - as_perp_x:.0f},{as_y2 - as_perp_y:.0f}'
+    svg.append(f'<polygon points="{asp1} {asp2} {asp3}" fill="{as_color}"/>')
+    svg.append(
+        f'<text x="{as_x2 + 8:.0f}" y="{as_y2 - 2:.0f}" fill="{as_color}" '
+        f'font-size="10" font-weight="bold">Alpe di Siusi</text>'
+    )
+    svg.append(
+        f'<text x="{as_x2 + 8:.0f}" y="{as_y2 + 10:.0f}" fill="#AAA" '
+        f'font-size="8">11, 12 (winter)</text>'
+    )
+
     # Draw stop nodes
-    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies'}
+    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies', 'Vallunga'}
     valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
 
     for place in set(nodes.keys()) - valley_nodes:
@@ -857,14 +891,15 @@ def create_route_network_svg(route_paths):
             'Chiusa':        (x - 12, y + 14, 'end'),
             'Funes':         (x - 12, y + 14, 'end'),
             'Bressanone':    (x, y - 14, 'middle'),
-            'Plan de Gralba': (x - 10, y - 14, 'end'),
+            'Plan de Gralba': (x - 10, y + 24, 'end'),
             'Passo Gardena':  (x + 10, y + 16, 'start'),
             'Colfosco':      (x + 10, y + 14, 'start'),
-            'Passo Sella':   (x - 10, y + 18, 'end'),
+            'Passo Sella':   (x - 10, y + 14, 'end'),
             'S. Giacomo':    (x + 10, y + 4, 'start'),
             'Col Raiser':    (x + 10, y - 8, 'start'),
             'Monte Pana':    (x + 10, y + 14, 'start'),
-            'Dantercepies':  (x, y - 18, 'middle'),
+            'Dantercepies':  (x, y - 10, 'middle'),
+            'Vallunga':      (x, y - 12, 'middle'),
         }
         if place in label_pos:
             lx, ly, anchor = label_pos[place]
@@ -873,9 +908,10 @@ def create_route_network_svg(route_paths):
         else:
             lx, ly, anchor = x + 10, y - 10, 'start'
 
+        display_name = {'Plan de Gralba': 'Plan'}.get(place, place)
         svg.append(
             f'<text x="{lx}" y="{ly}" text-anchor="{anchor}" '
-            f'fill="#555" font-size="10" font-weight="bold">{place}</text>'
+            f'fill="#555" font-size="10" font-weight="bold">{display_name}</text>'
         )
 
     # Season annotations for seasonal local stops
@@ -966,6 +1002,111 @@ def create_route_network_svg(route_paths):
     return '\n'.join(svg)
 
 
+def create_interactive_map():
+    """Create a Folium map with markers for all subway-map locations."""
+    VG_CENTER = [46.5650, 11.7100]
+
+    # Geographic coordinates for all stops on the subway map (verified)
+    # Valley villages
+    valley_stops = {
+        'Ortisei':      {'coords': [46.5750, 11.6676], 'color': '#7B1FA2', 'radius': 10},
+        'S. Cristina':  {'coords': [46.5581, 11.7209], 'color': '#4CAF50', 'radius': 8},
+        'Selva':        {'coords': [46.5558, 11.7562], 'color': '#F44336', 'radius': 8},
+    }
+
+    # Route stops (colored by route)
+    route_stops = {
+        'Pontives':      {'coords': [46.5846, 11.6347], 'color': '#6A1B9A'},
+        'Laion':         {'coords': [46.6085, 11.5691], 'color': '#6A1B9A'},
+        'Ponte Gardena': {'coords': [46.6014, 11.5327], 'color': '#6A1B9A'},
+        'Chiusa':        {'coords': [46.6429, 11.5733], 'color': '#6A1B9A'},
+        'Funes':         {'coords': [46.6566, 11.5968], 'color': '#6A1B9A'},
+        'Bressanone':    {'coords': [46.7151, 11.6526], 'color': '#6A1B9A'},
+        'Bolzano':       {'coords': [46.4981, 11.3585], 'color': '#E65100'},
+        'Bulla':         {'coords': [46.5650, 11.6353], 'color': '#2E7D32'},
+        'Castelrotto':   {'coords': [46.5678, 11.5609], 'color': '#2E7D32'},
+        'Siusi':         {'coords': [46.5451, 11.5625], 'color': '#2E7D32'},
+        'Plan de Gralba': {'coords': [46.5345, 11.7727], 'color': '#00695C'},
+        'Passo Gardena': {'coords': [46.5497, 11.8063], 'color': '#00695C'},
+        'Colfosco':      {'coords': [46.5543, 11.8558], 'color': '#00695C'},
+        'Corvara':       {'coords': [46.5473, 11.8755], 'color': '#00695C'},
+        'Passo Sella':   {'coords': [46.5080, 11.7685], 'color': '#1565C0'},
+        'Passo Pordoi':  {'coords': [46.4960, 11.7880], 'color': '#1565C0'},
+    }
+
+    # Local destinations (pink)
+    local_stops = {
+        'S. Giacomo':   {'coords': [46.5709, 11.6905]},
+        'Seceda':       {'coords': [46.5770, 11.6740]},
+        'Resciesa':     {'coords': [46.5777, 11.6724]},
+        'Col Raiser':   {'coords': [46.5648, 11.7365]},
+        'Monte Pana':   {'coords': [46.5509, 11.7156]},
+        'Dantercepies': {'coords': [46.5563, 11.7674]},
+        'Vallunga':     {'coords': [46.5588, 11.7671]},
+    }
+
+    # Grey stub destination
+    grey_stops = {
+        'Alpe di Siusi': {'coords': [46.5400, 11.5633]},
+    }
+
+    m = folium.Map(location=VG_CENTER, zoom_start=12, tiles='OpenStreetMap')
+
+    # Valley stops — large markers
+    for name, info in valley_stops.items():
+        folium.CircleMarker(
+            location=info['coords'],
+            radius=info['radius'],
+            color=info['color'],
+            fill=True,
+            fill_color=info['color'],
+            fill_opacity=0.8,
+            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
+            tooltip=name,
+        ).add_to(m)
+
+    # Route stops — medium markers
+    for name, info in route_stops.items():
+        folium.CircleMarker(
+            location=info['coords'],
+            radius=6,
+            color=info['color'],
+            fill=True,
+            fill_color=info['color'],
+            fill_opacity=0.7,
+            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
+            tooltip=name,
+        ).add_to(m)
+
+    # Local stops — small pink markers
+    for name, info in local_stops.items():
+        folium.CircleMarker(
+            location=info['coords'],
+            radius=5,
+            color='#CE93D8',
+            fill=True,
+            fill_color='#CE93D8',
+            fill_opacity=0.7,
+            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
+            tooltip=name,
+        ).add_to(m)
+
+    # Grey stub stops
+    for name, info in grey_stops.items():
+        folium.CircleMarker(
+            location=info['coords'],
+            radius=5,
+            color='#999',
+            fill=True,
+            fill_color='#999',
+            fill_opacity=0.7,
+            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
+            tooltip=name,
+        ).add_to(m)
+
+    return m
+
+
 # -- Main --------------------------------------------------------------------
 def main():
     # Load data first (cached after first run)
@@ -1004,6 +1145,11 @@ def main():
         route_paths = load_route_network()
         network_svg = create_route_network_svg(route_paths)
         components.html(network_svg, height=430)
+
+        # Interactive geographic map
+        st.markdown("### Interactive Map")
+        geo_map = create_interactive_map()
+        st_folium(geo_map, width=960, height=400, returned_objects=[])
 
         show_all_map = st.checkbox("Show all stops", value=False, key="map_all")
         if show_all_map:
