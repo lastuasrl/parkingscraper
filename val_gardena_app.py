@@ -638,6 +638,11 @@ def create_route_network_svg(route_paths):
         # Southeast: Passo Sella → Passo Pordoi (summer)
         'Passo Sella':    (780, line_y + 15),
         'Passo Pordoi':   (850, line_y + 40),
+        # Local destinations from Ortisei, S. Cristina and Selva
+        'S. Giacomo':     (430, line_y - 65),
+        'Col Raiser':     (555, line_y - 45),
+        'Monte Pana':     (505, line_y + 45),
+        'Dantercepies':   (715, line_y - 40),
     }
 
     # Subway lines: each line has a color and a path of segments
@@ -748,17 +753,22 @@ def create_route_network_svg(route_paths):
                     f'stroke-linecap="round"{dash}/>'
                 )
 
-    # Local connections (Seceda, Resciesa, Bulla — thin lines)
+    # Local connections (thin lines to local destinations)
+    # Tuple: (from, to, dashed) — dashed=True for seasonal routes
     local_conns = [
-        ('Ortisei', 'Seceda'), ('Seceda', 'Resciesa'),
-        ('Resciesa', 'Ortisei'), ('Ortisei', 'Bulla'),
+        ('Ortisei', 'Seceda', False), ('Seceda', 'Resciesa', False),
+        ('Resciesa', 'Ortisei', False), ('Ortisei', 'Bulla', False),
+        ('Ortisei', 'S. Giacomo', False),
+        ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
+        ('Selva', 'Dantercepies', False),
     ]
-    for a, b in local_conns:
+    for a, b, dashed in local_conns:
         ax, ay = nodes[a]
         bx, by = nodes[b]
+        dash = ' stroke-dasharray="6,4"' if dashed else ''
         svg.append(
             f'<line x1="{ax}" y1="{ay}" x2="{bx}" y2="{by}" '
-            f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" opacity="0.5"/>'
+            f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" opacity="0.5"{dash}/>'
         )
 
     # Siusi → Bolzano continuation arrow
@@ -811,7 +821,7 @@ def create_route_network_svg(route_paths):
     )
 
     # Draw stop nodes
-    local_stops = {'Seceda', 'Resciesa', 'Bulla'}
+    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies'}
     valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
 
     for place in set(nodes.keys()) - valley_nodes:
@@ -851,6 +861,10 @@ def create_route_network_svg(route_paths):
             'Passo Gardena':  (x + 10, y + 16, 'start'),
             'Colfosco':      (x + 10, y + 14, 'start'),
             'Passo Sella':   (x - 10, y + 18, 'end'),
+            'S. Giacomo':    (x + 10, y + 4, 'start'),
+            'Col Raiser':    (x + 10, y - 8, 'start'),
+            'Monte Pana':    (x + 10, y + 14, 'start'),
+            'Dantercepies':  (x, y - 18, 'middle'),
         }
         if place in label_pos:
             lx, ly, anchor = label_pos[place]
@@ -862,6 +876,19 @@ def create_route_network_svg(route_paths):
         svg.append(
             f'<text x="{lx}" y="{ly}" text-anchor="{anchor}" '
             f'fill="#555" font-size="10" font-weight="bold">{place}</text>'
+        )
+
+    # Season annotations for seasonal local stops
+    season_annotations = [
+        ('Col Raiser', '(winter/summer)', 'start', 10, -8),
+        ('Monte Pana', '(winter)', 'start', 10, 14),
+    ]
+    for place, season, anchor, dx, dy in season_annotations:
+        x, y = nodes[place]
+        lx, ly = x + dx, y + dy + 10
+        svg.append(
+            f'<text x="{lx}" y="{ly}" text-anchor="{anchor}" '
+            f'fill="#AAA" font-size="8" font-style="italic">{season}</text>'
         )
 
     # Valley nodes (large interchange circles, drawn on top)
@@ -902,7 +929,7 @@ def create_route_network_svg(route_paths):
             f'<text x="{lg_x + 28}" y="{y + 4}" fill="#555" font-size="9">'
             f'{line["id"]} {line["label"]}{summer}</text>'
         )
-    # Local line legend entry
+    # Local line legend entries
     ly_local = lg_y + len(route_lines) * 14
     svg.append(
         f'<line x1="{lg_x}" y1="{ly_local}" x2="{lg_x + 22}" y2="{ly_local}" '
@@ -912,8 +939,19 @@ def create_route_network_svg(route_paths):
         f'<text x="{lg_x + 28}" y="{ly_local + 4}" fill="#CE93D8" font-size="9">'
         f'Local (1-5, 355)</text>'
     )
+    # Local seasonal legend entry
+    ly_local_s = ly_local + 14
+    svg.append(
+        f'<line x1="{lg_x}" y1="{ly_local_s}" x2="{lg_x + 22}" y2="{ly_local_s}" '
+        f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" '
+        f'stroke-dasharray="6,4"/>'
+    )
+    svg.append(
+        f'<text x="{lg_x + 28}" y="{ly_local_s + 4}" fill="#CE93D8" font-size="9">'
+        f'Local (winter/summer only)</text>'
+    )
     # Funes Valley legend
-    ly_fv = ly_local + 14
+    ly_fv = ly_local_s + 14
     svg.append(
         f'<line x1="{lg_x}" y1="{ly_fv}" x2="{lg_x + 22}" y2="{ly_fv}" '
         f'stroke="#999" stroke-width="{line_w}" stroke-linecap="round" '
