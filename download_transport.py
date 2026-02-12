@@ -422,13 +422,8 @@ def save_calendar_dates_csv(calendar_dates, output_file):
     print(f"Saved {len(calendar_dates):,} calendar exceptions to {output_file}")
 
 
-def main():
-    """Download and parse GTFS data."""
-    print("=" * 60)
-    print("South Tyrol Public Transport Data Downloader")
-    print("=" * 60)
-    print()
-
+def refresh_gtfs_data():
+    """Download and parse GTFS data, saving to CSV files. Returns True on success."""
     # Download GTFS
     gtfs_zip = download_gtfs()
     print()
@@ -465,30 +460,24 @@ def main():
     save_calendar_csv(calendar, DATA_DIR / "transport_calendar.csv")
     save_calendar_dates_csv(calendar_dates, DATA_DIR / "transport_calendar_dates.csv")
 
+    print(f"\nRefresh complete: {len(stops)} stops, {len(dolomites_routes)} routes, "
+          f"{len(stop_times):,} stop times")
+    return True
+
+
+def main():
+    """Download and parse GTFS data."""
+    print("=" * 60)
+    print("South Tyrol Public Transport Data Downloader")
+    print("=" * 60)
+    print()
+
+    refresh_gtfs_data()
+
     print()
     print("=" * 60)
     print("Download Complete!")
     print("=" * 60)
-
-    # Print summary
-    print(f"\nData Summary:")
-    print(f"  Stops:             {len(stops):>8,}")
-    print(f"  Routes:            {len(dolomites_routes):>8,}")
-    print(f"  Trips:             {len(dolomites_trips):>8,}")
-    print(f"  Stop Times:        {len(stop_times):>8,}")
-    print(f"  Calendar Entries:  {len(calendar):>8,}")
-    print(f"  Calendar Dates:    {len(calendar_dates):>8,}")
-
-    # Count by region
-    region_counts = {}
-    for stop in stops.values():
-        region = stop["region"]
-        region_counts[region] = region_counts.get(region, 0) + 1
-
-    print(f"\nStops by Region:")
-    for region, count in sorted(region_counts.items(), key=lambda x: -x[1]):
-        print(f"  {region:20s} {count:>6,}")
-
     print(f"\nFiles saved to: {DATA_DIR}")
     print()
 

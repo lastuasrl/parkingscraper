@@ -9,6 +9,8 @@ import streamlit.components.v1 as components
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, date, time
+import time as _time
+import os
 import math
 import folium
 from streamlit_folium import st_folium
@@ -172,6 +174,21 @@ def get_active_service_ids(calendar_df, calendar_dates_df, target_date):
     removed = set(exceptions[exceptions['exception_type'] == 2]['service_id'])
 
     return (active | added) - removed
+
+
+def _ensure_fresh_gtfs(max_age_hours=24):
+    """Re-download GTFS data if CSVs are stale or missing."""
+    sentinel = DATA_DIR / "transport_stop_times.csv"
+    if sentinel.exists():
+        age_hours = (_time.time() - sentinel.stat().st_mtime) / 3600
+        if age_hours < max_age_hours:
+            return  # data is fresh
+    # Import and call the download pipeline
+    from download_transport import refresh_gtfs_data
+    with st.spinner("Downloading fresh bus schedule data..."):
+        refresh_gtfs_data()
+    # Invalidate cached data so new CSVs are loaded
+    load_data.clear()
 
 
 @st.cache_data
@@ -1308,7 +1325,8 @@ def create_interactive_map():
 
 # -- Main --------------------------------------------------------------------
 def main():
-    # Load data first (cached after first run)
+    # Auto-refresh GTFS data if stale (>24h) or missing; then load (cached)
+    _ensure_fresh_gtfs()
     stations, vg_routes, vg_trips, vg_stop_times, vg_trip_destinations, calendar_df, calendar_dates_df = load_data()
 
     st.title("\U0001f68d Val Gardena Bus Schedules")
@@ -1605,11 +1623,20 @@ def main():
         "Data: Open Data Hub GTFS - STA"
     )
 
-    stops_file = DATA_DIR / "transport_stops.csv"
+    stops_file = DATA_DIR / "transport_stop_times.csv"
     if stops_file.exists():
-        import os
+        age_hours = (_time.time() - stops_file.stat().st_mtime) / 3600
+        if age_hours < 1:
+            age_text = "just refreshed"
+        elif age_hours < 24:
+            age_text = f"updated {int(age_hours)}h ago"
+        else:
+            age_text = f"updated {int(age_hours / 24)}d ago"
         file_time = datetime.fromtimestamp(os.path.getmtime(stops_file))
-        st.sidebar.caption(f"Data updated: {file_time.strftime('%Y-%m-%d %H:%M')}")
+        st.sidebar.caption(
+            f"Schedule data: {age_text}\n\n"
+            f"({file_time.strftime('%Y-%m-%d %H:%M')})"
+        )
 
 
 if __name__ == "__main__":
