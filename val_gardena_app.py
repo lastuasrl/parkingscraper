@@ -615,6 +615,8 @@ def create_route_network_svg(route_paths):
         # North of Ortisei (local routes — real geographic direction)
         'Seceda':         (420, line_y - 65),
         'Resciesa':       (370, line_y - 65),
+        'Miraortisei':    (345, line_y - 45),
+        'Costamula':      (455, line_y - 95),
         # South from Ortisei: Bulla spur, then 172 line
         'Bulla':          (355, line_y + 50),
         'Castelrotto':    (310, line_y + 90),
@@ -760,9 +762,10 @@ def create_route_network_svg(route_paths):
     # Local connections (thin lines to local destinations)
     # Tuple: (from, to, dashed) — dashed=True for seasonal routes
     local_conns = [
-        ('Ortisei', 'Seceda', False), ('Ortisei', 'Resciesa', False), ('Resciesa', 'Seceda', False),
+        ('Ortisei', 'Seceda', False), ('Ortisei', 'Miraortisei', False),
+        ('Miraortisei', 'Resciesa', False), ('Resciesa', 'Seceda', False),
         ('Ortisei', 'Bulla', False),
-        ('Ortisei', 'S. Giacomo', False),
+        ('Ortisei', 'S. Giacomo', False), ('Ortisei', 'Costamula', False),
         ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
         ('Selva', 'Dantercepies', False), ('Selva', 'Vallunga', False),
         ('Selva', 'Daunëi', False), ('Vallunga', 'Dantercepies', False),
@@ -781,6 +784,7 @@ def create_route_network_svg(route_paths):
     local_route_labels = [
         ('Ortisei', 'S. Giacomo', '1', 0, -5),
         ('Ortisei', 'Bulla', '2', -12, 0),
+        ('Ortisei', 'Costamula', '3', 5, -5),
         ('Ortisei', 'Seceda', '4', -15, -5),
         ('S. Cristina', 'Col Raiser', '21', 5, -5),
         ('S. Cristina', 'Monte Pana', '355', 5, -5),
@@ -879,7 +883,7 @@ def create_route_network_svg(route_paths):
     )
 
     # Draw stop nodes
-    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies', 'Vallunga', 'Daunëi'}
+    local_stops = {'Seceda', 'Resciesa', 'Miraortisei', 'Costamula', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies', 'Vallunga', 'Daunëi'}
     valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
 
     for place in set(nodes.keys()) - valley_nodes:
@@ -905,8 +909,10 @@ def create_route_network_svg(route_paths):
 
         # Label positioning — explicit overrides for nodes near lines
         label_pos = {
-            'Seceda':        (x - 8, y - 10, 'end'),
+            'Seceda':        (x - 5, y - 6, 'end'),
             'Resciesa':      (x - 10, y - 8, 'end'),
+            'Miraortisei':   (x - 10, y + 4, 'end'),
+            'Costamula':     (x + 10, y - 8, 'start'),
             'Bulla':         (x + 12, y + 5, 'start'),
             'Pontives':      (x, y - 20, 'middle'),
             'Ponte Gardena': (x + 12, y + 16, 'start'),
@@ -1037,6 +1043,194 @@ def create_route_network_svg(route_paths):
     return '\n'.join(svg)
 
 
+def create_geographic_network_svg():
+    """Create a geographic map showing actual bus stop locations."""
+    # Real coordinates (lat, lon) for all destination stops
+    geo = {
+        # Main villages
+        'Ortisei':        (46.5734, 11.6741),
+        'S. Cristina':    (46.5581, 11.7209),
+        'Selva':          (46.5558, 11.7562),
+        # Ortisei local destinations
+        'Seceda':         (46.5770, 11.6740),
+        'Resciesa':       (46.5777, 11.6724),
+        'Miraortisei':    (46.5779, 11.6581),
+        # 'Grien' omitted — minor intermediate stop on route 4
+        'Costamula':      (46.5843, 11.6941),
+        'S. Giacomo':     (46.5709, 11.6905),
+        'Bulla':          (46.5650, 11.6353),
+        # S. Cristina local destinations
+        'Col Raiser':     (46.5648, 11.7365),
+        'Monte Pana':     (46.5509, 11.7156),
+        # Selva local destinations
+        'Dantercepies':   (46.5563, 11.7674),
+        'Vallunga':       (46.5588, 11.7671),
+        'Daunëi':         (46.5625, 11.7540),
+        'Plan de Gralba': (46.5339, 11.7720),
+        # Valley route stops
+        'Pontives':       (46.5846, 11.6347),
+        'Castelrotto':    (46.5678, 11.5609),
+        'Siusi':          (46.5451, 11.5625),
+        'Laion':          (46.6009, 11.5329),
+        'Ponte Gardena':  (46.5978, 11.5314),
+        # Summer pass routes
+        'Passo Gardena':  (46.5497, 11.8063),
+        'Colfosco':       (46.5543, 11.8558),
+        'Corvara':        (46.5473, 11.8755),
+        'Passo Sella':    (46.5080, 11.7685),
+        'Passo Pordoi':   (46.4960, 11.7880),
+    }
+    skip_nodes = {'Seceda', 'Resciesa'}
+
+    # SVG dimensions and projection
+    svg_w, svg_h = 960, 620
+    pad = 55
+
+    lats = [c[0] for c in geo.values()]
+    lons = [c[1] for c in geo.values()]
+    min_lat, max_lat = min(lats), max(lats)
+    min_lon, max_lon = min(lons), max(lons)
+    # Add padding to bounds
+    lat_range = max_lat - min_lat or 0.01
+    lon_range = max_lon - min_lon or 0.01
+    min_lat -= lat_range * 0.05
+    max_lat += lat_range * 0.05
+    min_lon -= lon_range * 0.05
+    max_lon += lon_range * 0.05
+    lat_range = max_lat - min_lat
+    lon_range = max_lon - min_lon
+
+    def proj(lat, lon):
+        x = pad + (lon - min_lon) / lon_range * (svg_w - 2 * pad)
+        y = pad + (max_lat - lat) / lat_range * (svg_h - 2 * pad)  # invert y
+        return x, y
+
+    svg = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_w} {svg_h}" '
+        f'style="width:100%;max-width:{svg_w}px;height:auto;font-family:sans-serif;">',
+        f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="#f8f9fa"/>',
+        '<text x="480" y="22" text-anchor="middle" fill="#555" font-size="13" '
+        'font-weight="bold">Geographic Stop Locations</text>',
+    ]
+
+    # Connections — same as schematic but with real coords
+    main_route = [
+        ('Ponte Gardena', 'Laion'), ('Laion', 'Pontives'),
+        ('Pontives', 'Ortisei'), ('Ortisei', 'S. Cristina'),
+        ('S. Cristina', 'Selva'),
+    ]
+    branch_172 = [('Ortisei', 'Castelrotto'), ('Castelrotto', 'Siusi')]
+    branch_gardena = [
+        ('Selva', 'Plan de Gralba'), ('Plan de Gralba', 'Passo Gardena'),
+        ('Passo Gardena', 'Colfosco'), ('Colfosco', 'Corvara'),
+    ]
+    branch_sella = [
+        ('Plan de Gralba', 'Passo Sella'), ('Passo Sella', 'Passo Pordoi'),
+    ]
+    local_ortisei = [
+        ('Ortisei', 'Seceda'), ('Ortisei', 'Miraortisei'),
+        ('Miraortisei', 'Resciesa'), ('Resciesa', 'Seceda'),
+        ('Ortisei', 'S. Giacomo'), ('Ortisei', 'Costamula'),
+        ('Ortisei', 'Bulla'),
+    ]
+    local_scristina = [
+        ('S. Cristina', 'Col Raiser'), ('S. Cristina', 'Monte Pana'),
+    ]
+    local_selva = [
+        ('Selva', 'Dantercepies'), ('Selva', 'Vallunga'),
+        ('Selva', 'Daunëi'), ('Vallunga', 'Dantercepies'),
+    ]
+
+    # Draw connections
+    def draw_lines(segs, color, width, dash=''):
+        for a, b in segs:
+            ax, ay = proj(*geo[a])
+            bx, by = proj(*geo[b])
+            svg.append(
+                f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" '
+                f'stroke="{color}" stroke-width="{width}" stroke-linecap="round"'
+                f'{dash}/>'
+            )
+
+    draw_lines(main_route, '#6A1B9A', 2.5)
+    draw_lines(branch_172, '#2E7D32', 2.5)
+    draw_lines(branch_gardena, '#00695C', 2, ' stroke-dasharray="6,3"')
+    draw_lines(branch_sella, '#1565C0', 2, ' stroke-dasharray="6,3"')
+    draw_lines(local_ortisei, '#CE93D8', 1.5, ' opacity="0.6"')
+    draw_lines(local_scristina, '#CE93D8', 1.5, ' opacity="0.6" stroke-dasharray="5,3"')
+    draw_lines(local_selva, '#CE93D8', 1.5, ' opacity="0.6"')
+
+    # Draw stop dots and labels
+    valley = {'Ortisei', 'S. Cristina', 'Selva'}
+    local = {
+        'Seceda', 'Resciesa', 'Miraortisei', 'Costamula',
+        'S. Giacomo', 'Bulla', 'Col Raiser', 'Monte Pana',
+        'Dantercepies', 'Vallunga', 'Daunëi',
+    }
+
+    for name, (lat, lon) in geo.items():
+        x, y = proj(lat, lon)
+        if name in valley:
+            r, fill, stroke, sw = 6, 'white', '#7B1FA2' if name == 'Ortisei' else '#555', 2.5
+        elif name in local:
+            r, fill, stroke, sw = 3, '#CE93D8', 'white', 1
+        else:
+            r, fill, stroke, sw = 4, '#555', 'white', 1.5
+        svg.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>'
+        )
+
+        # Label placement — default to right of dot
+        # Use smaller font for tightly-clustered local stops near Ortisei
+        ortisei_cluster = {'Seceda', 'Resciesa', 'Miraortisei'}
+        if name in valley:
+            fs, fw = 11, 'bold'
+        elif name in ortisei_cluster:
+            fs, fw = 6, 'bold'
+        elif name in local:
+            fs, fw = 7, 'normal'
+        else:
+            fs, fw = 8, 'normal'
+        color = '#7B1FA2' if name == 'Ortisei' else '#555' if name in valley else '#444'
+        # Manual label offsets (dx, dy, anchor)
+        label_adj = {
+            'Ortisei':        (10, 5, 'start'),
+            'S. Cristina':    (0, 16, 'middle'),
+            'Selva':          (0, 16, 'middle'),
+            'Seceda':         (5, -4, 'start'),
+            'Resciesa':       (-5, -4, 'end'),
+            'Miraortisei':    (-5, 10, 'end'),
+            'Costamula':      (5, -4, 'start'),
+            'S. Giacomo':     (5, 10, 'start'),
+            'Bulla':          (-5, -5, 'end'),
+            'Col Raiser':     (5, -4, 'start'),
+            'Monte Pana':     (5, 10, 'start'),
+            'Dantercepies':   (5, 10, 'start'),
+            'Vallunga':       (5, -4, 'start'),
+            'Daunëi':         (-5, 4, 'end'),
+            'Pontives':       (0, -10, 'middle'),
+            'Castelrotto':    (0, -10, 'middle'),
+            'Siusi':          (0, 12, 'middle'),
+            'Plan de Gralba': (-5, 12, 'end'),
+            'Passo Gardena':  (5, 4, 'start'),
+            'Colfosco':       (5, -6, 'start'),
+            'Corvara':        (5, 10, 'start'),
+            'Passo Sella':    (-5, 4, 'end'),
+            'Passo Pordoi':   (5, 4, 'start'),
+            'Laion':          (0, -10, 'middle'),
+            'Ponte Gardena':  (0, 12, 'middle'),
+        }
+        dx, dy, anchor = label_adj.get(name, (8, 4, 'start'))
+        svg.append(
+            f'<text x="{x + dx:.1f}" y="{y + dy:.1f}" text-anchor="{anchor}" '
+            f'fill="{color}" font-size="{fs}" font-weight="{fw}">{name}</text>'
+        )
+
+    svg.append('</svg>')
+    return '\n'.join(svg)
+
+
 def create_interactive_map():
     """Create a Folium map with markers for all subway-map locations."""
     VG_CENTER = [46.5650, 11.7100]
@@ -1070,6 +1264,8 @@ def create_interactive_map():
         'S. Giacomo':     {'coords': [46.5709, 11.6905]},
         'Seceda':         {'coords': [46.5770, 11.6740]},
         'Resciesa':       {'coords': [46.5777, 11.6724]},
+        'Miraortisei':    {'coords': [46.5779, 11.6581]},
+        'Costamula':      {'coords': [46.5843, 11.6941]},
         'Col Raiser':     {'coords': [46.5648, 11.7365]},
         'Monte Pana':     {'coords': [46.5509, 11.7156]},
         'Dantercepies':   {'coords': [46.5563, 11.7674]},
@@ -1148,6 +1344,11 @@ def main():
         route_paths = load_route_network()
         network_svg = create_route_network_svg(route_paths)
         components.html(network_svg, height=530)
+
+        # Geographic stop locations map
+        st.markdown("### Geographic Stop Locations")
+        geo_svg = create_geographic_network_svg()
+        components.html(geo_svg, height=630)
 
         # Interactive geographic map
         st.markdown("### Interactive Map")
