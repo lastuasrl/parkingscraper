@@ -613,8 +613,8 @@ def create_route_network_svg(route_paths):
         'S. Cristina':    (530, line_y),
         'Selva':          (640, line_y),
         # North of Ortisei (local routes — real geographic direction)
-        'Seceda':         (418, line_y - 60),
-        'Resciesa':       (392, line_y - 80),
+        'Seceda':         (420, line_y - 65),
+        'Resciesa':       (370, line_y - 65),
         # South from Ortisei: Bulla spur, then 172 line
         'Bulla':          (355, line_y + 50),
         'Castelrotto':    (310, line_y + 90),
@@ -641,7 +641,7 @@ def create_route_network_svg(route_paths):
         'Passo Sella':    (780, line_y + 15),
         'Passo Pordoi':   (850, line_y + 40),
         # Local destinations from Ortisei, S. Cristina and Selva
-        'S. Giacomo':     (448, line_y - 67),
+        'S. Giacomo':     (470, line_y - 75),
         'Col Raiser':     (555, line_y - 45),
         'Monte Pana':     (505, line_y + 45),
         'Dantercepies':   (715, line_y - 40),
@@ -760,7 +760,7 @@ def create_route_network_svg(route_paths):
     # Local connections (thin lines to local destinations)
     # Tuple: (from, to, dashed) — dashed=True for seasonal routes
     local_conns = [
-        ('Ortisei', 'Seceda', False), ('Seceda', 'Resciesa', False),
+        ('Ortisei', 'Seceda', False), ('Ortisei', 'Resciesa', False), ('Resciesa', 'Seceda', False),
         ('Ortisei', 'Bulla', False),
         ('Ortisei', 'S. Giacomo', False),
         ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
@@ -779,9 +779,9 @@ def create_route_network_svg(route_paths):
     # Route number labels on local connections
     # (label, x-offset from midpoint, y-offset from midpoint)
     local_route_labels = [
-        ('Ortisei', 'S. Giacomo', '1,3', -15, 8),
+        ('Ortisei', 'S. Giacomo', '1', 0, -5),
         ('Ortisei', 'Bulla', '2', -12, 0),
-        ('Ortisei', 'Seceda', '4', -12, -18),
+        ('Ortisei', 'Seceda', '4', -15, -5),
         ('S. Cristina', 'Col Raiser', '21', 5, -5),
         ('S. Cristina', 'Monte Pana', '355', 5, -5),
         ('Selva', 'Dantercepies', '21', 5, -8),
@@ -905,7 +905,7 @@ def create_route_network_svg(route_paths):
 
         # Label positioning — explicit overrides for nodes near lines
         label_pos = {
-            'Seceda':        (x + 10, y - 8, 'start'),
+            'Seceda':        (x - 8, y - 10, 'end'),
             'Resciesa':      (x - 10, y - 8, 'end'),
             'Bulla':         (x + 12, y + 5, 'start'),
             'Pontives':      (x, y - 20, 'middle'),
@@ -998,7 +998,7 @@ def create_route_network_svg(route_paths):
     )
     svg.append(
         f'<text x="{lg_x + 28}" y="{ly_local + 4}" fill="#CE93D8" font-size="9">'
-        f'Ortisei: 1,3 S. Giacomo/Costamula · 2 Bulla · 4 Seceda/Resciesa · 5 village loop</text>'
+        f'Ortisei: 1 S. Giacomo · 2 Bulla · 3 Costamula · 4 Seceda/Resciesa · 5 village loop</text>'
     )
     # Selva locals legend entry
     ly_local_s = ly_local + 14
