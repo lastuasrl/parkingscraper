@@ -603,7 +603,7 @@ def create_route_network_svg(route_paths):
     if not route_paths:
         return "<p>No route data</p>"
 
-    svg_w, svg_h = 960, 420
+    svg_w, svg_h = 960, 520
     line_y = 185
 
     # Node positions (hand-crafted schematic layout)
@@ -646,6 +646,8 @@ def create_route_network_svg(route_paths):
         'Monte Pana':     (505, line_y + 45),
         'Dantercepies':   (715, line_y - 40),
         'Vallunga':       (665, line_y - 70),
+        'Daunëi':         (660, line_y + 80),
+        'Costamula':      (445, line_y - 80),
     }
 
     # Subway lines: each line has a color and a path of segments
@@ -764,6 +766,8 @@ def create_route_network_svg(route_paths):
         ('Ortisei', 'S. Giacomo', False),
         ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
         ('Selva', 'Dantercepies', False), ('Selva', 'Vallunga', False),
+        ('Selva', 'Daunëi', False), ('Daunëi', 'Dantercepies', False),
+        ('Ortisei', 'Costamula', False),
     ]
     for a, b, dashed in local_conns:
         ax, ay = nodes[a]
@@ -772,6 +776,30 @@ def create_route_network_svg(route_paths):
         svg.append(
             f'<line x1="{ax}" y1="{ay}" x2="{bx}" y2="{by}" '
             f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" opacity="0.5"{dash}/>'
+        )
+
+    # Route number labels on local connections
+    # (label, x-offset from midpoint, y-offset from midpoint)
+    local_route_labels = [
+        ('Ortisei', 'S. Giacomo', '1', 5, -5),
+        ('Ortisei', 'Bulla', '2', -12, 0),
+        ('Ortisei', 'Seceda', '4', -12, 0),
+        ('Seceda', 'Resciesa', '4', -5, -8),
+        ('Ortisei', 'Costamula', '3', 5, -5),
+        ('S. Cristina', 'Col Raiser', '21', 5, -5),
+        ('S. Cristina', 'Monte Pana', '355', 5, -5),
+        ('Selva', 'Dantercepies', '21', 5, 12),
+        ('Selva', 'Vallunga', '355', 5, -5),
+        ('Selva', 'Daunëi', '22', -14, 0),
+        ('Daunëi', 'Dantercepies', '23', 5, 12),
+    ]
+    for a, b, label, dx, dy in local_route_labels:
+        ax, ay = nodes[a]
+        bx, by = nodes[b]
+        mx, my = (ax + bx) / 2 + dx, (ay + by) / 2 + dy
+        svg.append(
+            f'<text x="{mx:.0f}" y="{my:.0f}" fill="#CE93D8" '
+            f'font-size="8" font-weight="bold">{label}</text>'
         )
 
     # Siusi → Bolzano continuation arrow
@@ -855,7 +883,7 @@ def create_route_network_svg(route_paths):
     )
 
     # Draw stop nodes
-    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies', 'Vallunga'}
+    local_stops = {'Seceda', 'Resciesa', 'Bulla', 'S. Giacomo', 'Col Raiser', 'Monte Pana', 'Dantercepies', 'Vallunga', 'Daunëi', 'Costamula'}
     valley_nodes = {'Ortisei', 'S. Cristina', 'Selva'}
 
     for place in set(nodes.keys()) - valley_nodes:
@@ -900,6 +928,8 @@ def create_route_network_svg(route_paths):
             'Monte Pana':    (x + 10, y + 14, 'start'),
             'Dantercepies':  (x, y - 10, 'middle'),
             'Vallunga':      (x, y - 12, 'middle'),
+            'Daunëi':        (x + 10, y + 14, 'start'),
+            'Costamula':     (x + 10, y - 8, 'start'),
         }
         if place in label_pos:
             lx, ly, anchor = label_pos[place]
@@ -951,7 +981,7 @@ def create_route_network_svg(route_paths):
         )
 
     # Legend (bottom-left)
-    lg_x, lg_y = 20, svg_h - 115
+    lg_x, lg_y = 20, svg_h - 135
     for i, line in enumerate(route_lines):
         y = lg_y + i * 14
         dash = ' stroke-dasharray="6,3"' if line['dashed'] else ''
@@ -965,7 +995,7 @@ def create_route_network_svg(route_paths):
             f'<text x="{lg_x + 28}" y="{y + 4}" fill="#555" font-size="9">'
             f'{line["id"]} {line["label"]}{summer}</text>'
         )
-    # Local line legend entries
+    # Local line legend entries — Ortisei locals
     ly_local = lg_y + len(route_lines) * 14
     svg.append(
         f'<line x1="{lg_x}" y1="{ly_local}" x2="{lg_x + 22}" y2="{ly_local}" '
@@ -973,21 +1003,31 @@ def create_route_network_svg(route_paths):
     )
     svg.append(
         f'<text x="{lg_x + 28}" y="{ly_local + 4}" fill="#CE93D8" font-size="9">'
-        f'Local (1-5, 355)</text>'
+        f'Ortisei: 1 S. Giacomo · 2 Bulla · 3 Costamula · 4 Seceda/Resciesa · 5 village loop</text>'
     )
-    # Local seasonal legend entry
+    # Selva locals legend entry
     ly_local_s = ly_local + 14
     svg.append(
         f'<line x1="{lg_x}" y1="{ly_local_s}" x2="{lg_x + 22}" y2="{ly_local_s}" '
+        f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round"/>'
+    )
+    svg.append(
+        f'<text x="{lg_x + 28}" y="{ly_local_s + 4}" fill="#CE93D8" font-size="9">'
+        f'Selva: 21 Col Raiser↔Dantercepies · 22 Daunëi · 23 Daunëi↔Dantercepies</text>'
+    )
+    # S. Cristina / seasonal legend entry
+    ly_local_ss = ly_local_s + 14
+    svg.append(
+        f'<line x1="{lg_x}" y1="{ly_local_ss}" x2="{lg_x + 22}" y2="{ly_local_ss}" '
         f'stroke="#CE93D8" stroke-width="2" stroke-linecap="round" '
         f'stroke-dasharray="6,4"/>'
     )
     svg.append(
-        f'<text x="{lg_x + 28}" y="{ly_local_s + 4}" fill="#CE93D8" font-size="9">'
-        f'Local (winter/summer only)</text>'
+        f'<text x="{lg_x + 28}" y="{ly_local_ss + 4}" fill="#CE93D8" font-size="9">'
+        f'355 Monte Pana/Vallunga (seasonal)</text>'
     )
     # Funes Valley legend
-    ly_fv = ly_local_s + 14
+    ly_fv = ly_local_ss + 14
     svg.append(
         f'<line x1="{lg_x}" y1="{ly_fv}" x2="{lg_x + 22}" y2="{ly_fv}" '
         f'stroke="#999" stroke-width="{line_w}" stroke-linecap="round" '
@@ -1043,6 +1083,8 @@ def create_interactive_map():
         'Monte Pana':   {'coords': [46.5509, 11.7156]},
         'Dantercepies': {'coords': [46.5563, 11.7674]},
         'Vallunga':     {'coords': [46.5588, 11.7671]},
+        'Daunëi':       {'coords': [46.5625, 11.7540]},
+        'Costamula':    {'coords': [46.5820, 11.6770]},
     }
 
     # Grey stub destination
@@ -1144,7 +1186,7 @@ def main():
         st.markdown("### Bus Route Network from Ortisei")
         route_paths = load_route_network()
         network_svg = create_route_network_svg(route_paths)
-        components.html(network_svg, height=430)
+        components.html(network_svg, height=530)
 
         # Interactive geographic map
         st.markdown("### Interactive Map")
