@@ -765,7 +765,7 @@ def create_route_network_svg(route_paths):
         ('Ortisei', 'S. Giacomo', False),
         ('S. Cristina', 'Col Raiser', True), ('S. Cristina', 'Monte Pana', True),
         ('Selva', 'Dantercepies', False), ('Selva', 'Vallunga', False),
-        ('Selva', 'Daunëi', False), ('Daunëi', 'Dantercepies', False),
+        ('Selva', 'Daunëi', False), ('Vallunga', 'Dantercepies', False),
     ]
     for a, b, dashed in local_conns:
         ax, ay = nodes[a]
@@ -787,7 +787,7 @@ def create_route_network_svg(route_paths):
         ('Selva', 'Dantercepies', '21', 5, -8),
         ('Selva', 'Vallunga', '355', 5, -5),
         ('Selva', 'Daunëi', '22', -14, 5),
-        ('Daunëi', 'Dantercepies', '23', 5, 12),
+        ('Vallunga', 'Dantercepies', '23', -18, -14),
     ]
     for a, b, label, dx, dy in local_route_labels:
         ax, ay = nodes[a]
@@ -915,7 +915,7 @@ def create_route_network_svg(route_paths):
             'Chiusa':        (x - 12, y + 14, 'end'),
             'Funes':         (x - 12, y + 14, 'end'),
             'Bressanone':    (x, y - 14, 'middle'),
-            'Plan de Gralba': (x + 10, y + 16, 'start'),
+            'Plan de Gralba': (x - 10, y + 24, 'end'),
             'Passo Gardena':  (x + 10, y + 16, 'start'),
             'Colfosco':      (x + 10, y + 14, 'start'),
             'Passo Sella':   (x - 10, y + 14, 'end'),
@@ -1008,7 +1008,7 @@ def create_route_network_svg(route_paths):
     )
     svg.append(
         f'<text x="{lg_x + 28}" y="{ly_local_s + 4}" fill="#CE93D8" font-size="9">'
-        f'Selva: 21 Col Raiser↔Dantercepies · 22 Daunëi · 23 Daunëi↔Dantercepies</text>'
+        f'Selva: 21 Col Raiser↔Dantercepies · 22 Daunëi · 23 Daunëi–Vallunga–Dantercepies</text>'
     )
     # S. Cristina / seasonal legend entry
     ly_local_ss = ly_local_s + 14
@@ -1049,41 +1049,34 @@ def create_interactive_map():
         'Selva':        {'coords': [46.5558, 11.7562], 'color': '#F44336', 'radius': 8},
     }
 
-    # Route stops (colored by route)
-    route_stops = {
-        'Pontives':      {'coords': [46.5846, 11.6347], 'color': '#6A1B9A'},
-        'Laion':         {'coords': [46.6085, 11.5691], 'color': '#6A1B9A'},
-        'Ponte Gardena': {'coords': [46.6014, 11.5327], 'color': '#6A1B9A'},
-        'Chiusa':        {'coords': [46.6429, 11.5733], 'color': '#6A1B9A'},
-        'Funes':         {'coords': [46.6566, 11.5968], 'color': '#6A1B9A'},
-        'Bressanone':    {'coords': [46.7151, 11.6526], 'color': '#6A1B9A'},
-        'Bolzano':       {'coords': [46.4981, 11.3585], 'color': '#E65100'},
-        'Bulla':         {'coords': [46.5650, 11.6353], 'color': '#2E7D32'},
-        'Castelrotto':   {'coords': [46.5678, 11.5609], 'color': '#2E7D32'},
-        'Siusi':         {'coords': [46.5451, 11.5625], 'color': '#2E7D32'},
-        'Plan de Gralba': {'coords': [46.5345, 11.7727], 'color': '#00695C'},
-        'Passo Gardena': {'coords': [46.5497, 11.8063], 'color': '#00695C'},
-        'Colfosco':      {'coords': [46.5543, 11.8558], 'color': '#00695C'},
-        'Corvara':       {'coords': [46.5473, 11.8755], 'color': '#00695C'},
-        'Passo Sella':   {'coords': [46.5080, 11.7685], 'color': '#1565C0'},
-        'Passo Pordoi':  {'coords': [46.4960, 11.7880], 'color': '#1565C0'},
-    }
-
-    # Local destinations (pink)
-    local_stops = {
-        'S. Giacomo':   {'coords': [46.5709, 11.6905]},
-        'Seceda':       {'coords': [46.5770, 11.6740]},
-        'Resciesa':     {'coords': [46.5777, 11.6724]},
-        'Col Raiser':   {'coords': [46.5648, 11.7365]},
-        'Monte Pana':   {'coords': [46.5509, 11.7156]},
-        'Dantercepies': {'coords': [46.5563, 11.7674]},
-        'Vallunga':     {'coords': [46.5588, 11.7671]},
-        'Daunëi':       {'coords': [46.5625, 11.7540]},
-    }
-
-    # Grey stub destination
-    grey_stops = {
-        'Alpe di Siusi': {'coords': [46.5400, 11.5633]},
+    # All non-valley stops (grey)
+    other_stops = {
+        'Pontives':       {'coords': [46.5846, 11.6347]},
+        'Laion':          {'coords': [46.6085, 11.5691]},
+        'Ponte Gardena':  {'coords': [46.6014, 11.5327]},
+        'Chiusa':         {'coords': [46.6429, 11.5733]},
+        'Funes':          {'coords': [46.6566, 11.5968]},
+        'Bressanone':     {'coords': [46.7151, 11.6526]},
+        'Bolzano':        {'coords': [46.4981, 11.3585]},
+        'Bulla':          {'coords': [46.5650, 11.6353]},
+        'Castelrotto':    {'coords': [46.5678, 11.5609]},
+        'Siusi':          {'coords': [46.5451, 11.5625]},
+        'Plan de Gralba': {'coords': [46.5345, 11.7727]},
+        'Passo Gardena':  {'coords': [46.5497, 11.8063]},
+        'Colfosco':       {'coords': [46.5543, 11.8558]},
+        'Corvara':        {'coords': [46.5473, 11.8755]},
+        'Passo Sella':    {'coords': [46.5080, 11.7685]},
+        'Passo Pordoi':   {'coords': [46.4960, 11.7880]},
+        'S. Giacomo':     {'coords': [46.5709, 11.6905]},
+        'Seceda':         {'coords': [46.5770, 11.6740]},
+        'Resciesa':       {'coords': [46.5777, 11.6724]},
+        'Col Raiser':     {'coords': [46.5648, 11.7365]},
+        'Monte Pana':     {'coords': [46.5509, 11.7156]},
+        'Dantercepies':   {'coords': [46.5563, 11.7674]},
+        'Vallunga':       {'coords': [46.5588, 11.7671]},
+        'Daunëi':         {'coords': [46.5625, 11.7540]},
+        'Ranui':          {'coords': [46.6369, 11.7207]},
+        'Alpe di Siusi':  {'coords': [46.5400, 11.5633]},
     }
 
     m = folium.Map(location=VG_CENTER, zoom_start=12, tiles='OpenStreetMap')
@@ -1101,34 +1094,8 @@ def create_interactive_map():
             tooltip=name,
         ).add_to(m)
 
-    # Route stops — medium markers
-    for name, info in route_stops.items():
-        folium.CircleMarker(
-            location=info['coords'],
-            radius=6,
-            color=info['color'],
-            fill=True,
-            fill_color=info['color'],
-            fill_opacity=0.7,
-            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
-            tooltip=name,
-        ).add_to(m)
-
-    # Local stops — small pink markers
-    for name, info in local_stops.items():
-        folium.CircleMarker(
-            location=info['coords'],
-            radius=5,
-            color='#CE93D8',
-            fill=True,
-            fill_color='#CE93D8',
-            fill_opacity=0.7,
-            popup=folium.Popup(f"<b>{name}</b>", max_width=150),
-            tooltip=name,
-        ).add_to(m)
-
-    # Grey stub stops
-    for name, info in grey_stops.items():
+    # Other stops — grey markers
+    for name, info in other_stops.items():
         folium.CircleMarker(
             location=info['coords'],
             radius=5,
