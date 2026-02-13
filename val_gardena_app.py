@@ -1373,6 +1373,17 @@ def main():
         geo_map = create_interactive_map()
         st_folium(geo_map, width=960, height=400, returned_objects=[])
 
+        # Village bus network PDF maps
+        st.markdown("### Village Bus Network Maps")
+        col_o, col_sc, col_se = st.columns(3)
+        with col_o:
+            st.link_button("Ortisei", "https://www.valgardena.it/dl/stchristina/pdf/Network_bus_ortisei.pdf")
+        with col_sc:
+            st.link_button("S. Cristina", "https://www.valgardena.it/dl/stchristina/pdf/Network_bus_scristina.pdf")
+        with col_se:
+            st.link_button("Selva", "https://www.valgardena.it/dl/stchristina/pdf/Network_bus_selva.pdf")
+        st.link_button("Full Val Gardena Network (all buses + lifts)", "https://www.valgardena.it/dl/stchristina/pdf/Network_bus_lifts_Val_Gardena.pdf")
+
     # -- TAB 2: Schedules ----------------------------------------------------
     with tab2:
         st.header("Departure Board")
